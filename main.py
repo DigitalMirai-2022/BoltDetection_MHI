@@ -26,8 +26,6 @@ import threading
 inference_target_ids = [0, 1, 2]
 logger = getLogger()
 
-import time
-
 
 class CameraApp:
     def __init__(
@@ -39,7 +37,6 @@ class CameraApp:
         video_source=0,
         color=sv.ColorPalette.DEFAULT,
     ):
-        t1 = time.time()
         self.window = window
         self.window.title(window_title)
         self.video_source = video_source
@@ -84,15 +81,11 @@ class CameraApp:
 
         # YOLOXモデル
         self.model = self.init_model(model_path)
-        t2 = time.time()
-        print(f"time prepare {t2-t1} s")
-        print(f"config data {self.config}")
-        print("#######################################")
 
-        self.change = False
-        self.inferenced_frame = None  # To store the AI inferenced frame
+        self.change = False  # AI判定に移るためのフラグ
+        self.inferenced_frame = None  # AI判定の結果初期化
 
-        self.window.after(5000, self.start_camera)
+        self.window.after(5000, self.start_camera)  # カメラ表示５秒後、QRコード検知開始
         self.update()
 
         self.window.bind("<Return>", self.export_empty_csv)
@@ -104,22 +97,25 @@ class CameraApp:
         self.canvas.config(width=event.width, height=event.height)
 
     def start_camera(self):
+        """カメラ映像表示"""
         ret, frame = self.vid.read()
         if ret:
-            self.qr_info = self.function_qrdec_pyzbar(frame)
+            self.qr_info = self.function_qrdec_pyzbar(frame)  # QRコード読取り
             if self.qr_info is None:
-                self.window.after(5000, self.start_camera)
+                self.window.after(
+                    5000, self.start_camera
+                )  # QRコード読み取れるまで、5秒ごと再読取り
             else:
                 self.change = True
-                # Start AI processing in a new thread
+                # 別のスレッドでAI判定開始
                 threading.Thread(target=self.AI_test, daemon=True).start()
         else:
             messagebox.showerror("エラー", "カメラが検出出来ませんでした。")
             self.quit()
 
     def update(self):
+        """映像カメラ表示継続"""
         ret, frame = self.vid.read()
-
         if ret:
             try:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -163,12 +159,11 @@ class CameraApp:
                     inference_result = self.model.inference(frame)
 
                     if inference_result is not None:
-                        final_boxes, final_scores, final_cls_inds = (
+                        output = (
                             inference_result[:, :4],
                             inference_result[:, 4],
                             inference_result[:, 5],
                         )
-                        output = final_boxes, final_scores, final_cls_inds
                         detections = sv.Detections.from_yolox_onnx(output)
                         detections = detections[
                             np.isin(detections.class_id, inference_target_ids)
@@ -200,8 +195,6 @@ class CameraApp:
                                 count_list,
                                 self.config.bolt_status.status_change_count,
                             )
-                            print(f"count_list {count_list}")
-                            print("===============================================")
 
                     # ウィンドウサイズに合わせてフレームをリサイズ
                     frame = cv2.resize(
@@ -211,9 +204,15 @@ class CameraApp:
 
                 except Exception as e:
                     logger.error(f"最新フレーム取得エラー:{str(e)}")
+                    self.change = False
                     raise ValueError("最新フレーム取得エラー")
+            else:
+                logger.error("エラー", "カメラが検出出来ませんでした。")
+                self.quit()
+                break
 
     def init_model(self, model_path):
+        """モデルロード"""
         model = None
         if model_path is not None:
             model = YOLOX(
@@ -259,26 +258,8 @@ class CameraApp:
             print(f"設定ファイルの値が間違っている可能性があります。")
             raise
 
-    # def display_ai_preparation(self):
-    #     """Display AI preparation message"""
-    #     # self.canvas.delete("all")
-    #     rect_x1 = self.canvas.winfo_width() // 2 - 120
-    #     rect_y1 = self.canvas.winfo_height() // 2 - 20
-    #     rect_x2 = self.canvas.winfo_width() // 2 + 120
-    #     rect_y2 = self.canvas.winfo_height() // 2 + 20
-    #     self.canvas.create_rectangle(
-    #         rect_x1, rect_y1, rect_x2, rect_y2, fill="white", outline=""
-    #     )
-    #     self.canvas.create_text(
-    #         self.canvas.winfo_width() // 2,
-    #         self.canvas.winfo_height() // 2,
-    #         text="AI判定の準備中。。。",
-    #         fill="red",
-    #         font=("Helvetica", 16),
-    #     )
-    #     self.canvas.update_idletasks()
-
     def function_qrdec_pyzbar(self, img_bgr):
+        """QRコード読み取り"""
         dec_inf = None
         try:
             value = decode(img_bgr, symbols=[ZBarSymbol.QRCODE])
@@ -296,6 +277,7 @@ class CameraApp:
             return None
 
     def export_empty_csv(self, event):
+        """CSVファイル出力"""
         try:
             result_path = "result"
             if not os.path.exists(result_path):
@@ -310,6 +292,7 @@ class CameraApp:
             logger.error(f"CSVファイルの出力中にエラーが発生しました: {e}")
 
     def quit(self):
+        """システム終了"""
         self.vid.release()
         self.window.destroy()
 

@@ -10,22 +10,23 @@ def vis_class_count(image, selected_classes, count_list, config_total):
     """
     total_detected = sum(count_list)
     unknown_class = config_total - total_detected
-
-    text_position = image.shape[1]
-
-    font = cv2.FONT_HERSHEY_SIMPLEX
-
     text_list = [COCO_CLASSES[i] for i in selected_classes]
     text_list.append("Unknown")
     text_list.append("total")
     count_list.append(unknown_class)
     count_list.append(config_total)
+
+    # 表示テキストリファクタリング
     display_text = []
     for cls, count in zip(text_list, count_list):
         text = f"{cls}: {count}"
         display_text.append(text)
     result_text = ", ".join(display_text)
+    font = cv2.FONT_HERSHEY_SIMPLEX
     text_size = cv2.getTextSize(result_text, font, 0.5, 1)[0]
+    text_position = image.shape[1]
+
+    # 描画
     cv2.rectangle(
         image,
         (int(text_position - text_size[0] - 15), text_size[1] - 5),
