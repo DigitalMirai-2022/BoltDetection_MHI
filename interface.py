@@ -37,32 +37,3 @@ class Config_Data:
     y_range: YRange
     code_specification: CodeSpecification
     bolt_status: BoltStatus
-
-
-# # JSONデータロード
-# with open("config.json", "r") as f:
-#     data_dict = json.load(f)
-
-# # データクラスインスタンス生成
-# marker_size = MarkerSize(length=data_dict["marker size"]["length"])
-# axis = Axis(
-#     direction=data_dict["axis"]["direction"], marker_no=data_dict["axis"]["marker no"]
-# )
-# y_range = YRange(lower_y=data_dict["y range"]["Lower y"])
-# code_specification = CodeSpecification(
-#     flg=data_dict["code specification"]["flg"],
-#     code=data_dict["code specification"]["code"],
-# )
-# bolt_status = BoltStatus(
-#     loading_interval=data_dict["bolt status"]["loading interval"],
-#     status_change_count=data_dict["bolt status"]["status change count"],
-# )
-
-# # コンフィグデータ
-# config_data = Config_Data(
-#     marker_size=marker_size,
-#     axis=axis,
-#     y_range=y_range,
-#     code_specification=code_specification,
-#     bolt_status=bolt_status,
-# )

@@ -1,7 +1,5 @@
 import cv2
 from coco_classes import COCO_CLASSES
-from PIL import ImageFont, ImageDraw, Image
-import numpy as np
 
 
 def vis_class_count(image, selected_classes, count_list, config_total):
