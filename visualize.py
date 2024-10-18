@@ -47,27 +47,5 @@ def vis_class_count(image, selected_classes, count_list, config_total):
         thickness=1,
         lineType=cv2.LINE_AA,
     )
-    return image
 
-
-def draw_text_at_center(img, text):
-    draw = ImageDraw.Draw(img)
-    font_ttf = "font_jp/NotoSansJP-VariableFont_wght.ttf"
-    draw.font = ImageFont.truetype(font_ttf, 40)
-
-    img_size = np.array(img.size)
-    txt_size = np.array(draw.font.getsize(text))
-    pos = (img_size - txt_size) / 2
-    left, top, right, bottom = draw.textbbox(pos, text, font=draw.font)
-    draw.rectangle((left - 5, top - 5, right + 5, bottom + 5), fill="white")
-    draw.text(pos, text, font=draw.font, fill="red")
-
-    return img
-
-
-def vis_waiting_prepare(image):
-    text = "AI判定の準備中。。。"
-    img_pil = Image.fromarray(image)
-    img_pil = draw_text_at_center(img_pil, text)
-    image = np.array(img_pil)
     return image

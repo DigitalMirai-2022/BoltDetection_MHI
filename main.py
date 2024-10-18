@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 from detect import YOLOX
 from coco_classes import COCO_CLASSES
-from visualize import vis_class_count, vis_waiting_prepare
+from visualize import vis_class_count
 from interface import (
     MarkerSize,
     Axis,
@@ -85,7 +85,7 @@ class CameraApp:
         self.change = False  # AI判定に移るためのフラグ
         self.inferenced_frame = None  # AI判定の結果初期化
 
-        self.window.after(5000, self.start_camera)  # カメラ表示５秒後、QRコード検知開始
+        self.window.after(100, self.start_camera)  # カメラ表示0.1秒後、QRコード検知開始
         self.update()
 
         self.window.bind("<Return>", self.export_empty_csv)
@@ -100,15 +100,21 @@ class CameraApp:
         """カメラ映像表示"""
         ret, frame = self.vid.read()
         if ret:
-            self.qr_info = self.function_qrdec_pyzbar(frame)  # QRコード読取り
+            # QRコードを読み取る
+            self.qr_info = self.function_qrdec_pyzbar(frame)
             if self.qr_info is None:
-                self.window.after(
-                    5000, self.start_camera
-                )  # QRコード読み取れるまで、5秒ごと再読取り
+                # QRコードが読み取れない場合、再度読み取り
+                self.window.after(100, self.start_camera)
             else:
-                self.change = True
-                # 別のスレッドでAI判定開始
-                threading.Thread(target=self.AI_test, daemon=True).start()
+                # QRコードが読み取れた場合にOK/キャンセルダイアログを表示
+                dialog_result = messagebox.askokcancel("QR情報", self.qr_info)
+                if dialog_result:  # OKが押された場合
+                    self.change = True
+                    threading.Thread(
+                        target=self.AI_test, daemon=True
+                    ).start()  # 別のスレッドでAI判定開始
+                else:  # キャンセルが押された場合
+                    self.window.after(100, self.start_camera)  # QRコードを再度読み取る
         else:
             messagebox.showerror("エラー", "カメラが検出出来ませんでした。")
             self.quit()
@@ -119,23 +125,22 @@ class CameraApp:
         if ret:
             try:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
                 # ウィンドウサイズに合わせてフレームをリサイズ
                 resized_frame = cv2.resize(
                     frame, (self.canvas.winfo_width(), self.canvas.winfo_height())
                 )
                 if self.inferenced_frame is None:
                     if self.change:
-                        # display_frame = resized_frame
-                        display_frame = np.zeros(
-                            (self.canvas.winfo_height(), self.canvas.winfo_width(), 3),
-                            dtype=np.uint8,
-                        )
-                        display_frame = vis_waiting_prepare(display_frame)
+                        display_frame = resized_frame
+                        # 非クリック型のダイアログ表示
+                        self.show_waiting_dialog()
                     else:
                         display_frame = resized_frame
+
                 elif self.inferenced_frame is not None and self.change:
                     display_frame = self.inferenced_frame
+                    # AI処理が開始されたらダイアログを閉じる
+                    self.window.after(0, self.close_waiting_dialog)
 
                 self.image = ImageTk.PhotoImage(image=Image.fromarray(display_frame))
                 self.canvas.create_image(0, 0, image=self.image, anchor=tk.NW)
@@ -169,15 +174,11 @@ class CameraApp:
                             np.isin(detections.class_id, inference_target_ids)
                         ]
                         count_list = []
-                        for zone, zone_annotator, box_annotator in zip(
-                            self.zones, self.zone_annotators, self.box_annotators
-                        ):
+                        for zone, box_annotator in zip(self.zones, self.box_annotators):
                             detections_in_zone = detections[
                                 zone.trigger(detections=detections)
                             ]
-
-                            # エリア、バウンディングボックス描画
-                            frame = zone_annotator.annotate(scene=frame)
+                            # バウンディングボックス描画
                             frame = box_annotator.annotate(
                                 scene=frame, detections=detections_in_zone
                             )
@@ -189,12 +190,15 @@ class CameraApp:
                                 ]
                                 count_list.append(len(detection_filter))
 
-                            frame = vis_class_count(
-                                frame,
-                                inference_target_ids,
-                                count_list,
-                                self.config.bolt_status.status_change_count,
-                            )
+                    # エリア描画
+                    for zone in self.zone_annotators:
+                        frame = zone.annotate(scene=frame)
+                    frame = vis_class_count(
+                        frame,
+                        inference_target_ids,
+                        count_list,
+                        self.config.bolt_status.status_change_count,
+                    )
 
                     # ウィンドウサイズに合わせてフレームをリサイズ
                     frame = cv2.resize(
@@ -266,15 +270,43 @@ class CameraApp:
             if value:
                 for qrcode in value:
                     dec_inf = qrcode.data.decode("utf-8")
-                messagebox.showinfo("QR情報", dec_inf)
-            else:
-                messagebox.showerror(
-                    "失敗", "QRコード読み取り失敗しました。再度読み取ります。"
-                )
-            return dec_inf
+                return dec_inf  # QRコードが成功した場合
+            return None  # QRコードが読み取れなかった場合
         except Exception as e:
             logger.error(f"QRコードのデコード中にエラーが発生しました: {e}")
             return None
+
+    def show_waiting_dialog(self):
+        """AI処理待ちのダイアログを表示"""
+        if not hasattr(self, "waiting_dialog") or self.waiting_dialog is None:
+            # ダイアログがまだ存在しない場合のみ表示
+            self.waiting_dialog = tk.Toplevel(self.window)
+            self.waiting_dialog.title("AI処理待機中")
+            tk.Label(self.waiting_dialog, text="AI処理を準備中です...").pack(
+                padx=20, pady=20
+            )
+
+            # メインウィンドウの位置とサイズを取得
+            self.window.update_idletasks()  # 必要に応じて更新
+            main_window_x = self.window.winfo_x()
+            main_window_y = self.window.winfo_y()
+            main_window_width = self.window.winfo_width()
+
+            # ダイアログの位置をメインウィンドウの右隣に設定
+            dialog_x = main_window_x + main_window_width + 10  # 右隣に10pxの間隔
+            dialog_y = main_window_y
+            self.waiting_dialog.geometry(f"+{dialog_x}+{dialog_y}")
+
+            # ダイアログを閉じられないように設定
+            self.waiting_dialog.protocol("WM_DELETE_WINDOW", lambda: None)
+            self.waiting_dialog.transient(self.window)  # メインウィンドウと関連づける
+            self.waiting_dialog.grab_set()  # モーダルにする
+
+    def close_waiting_dialog(self):
+        """AI処理開始時にダイアログを自動的に閉じる"""
+        if hasattr(self, "waiting_dialog") and self.waiting_dialog is not None:
+            self.waiting_dialog.destroy()
+            self.waiting_dialog = None
 
     def export_empty_csv(self, event):
         """CSVファイル出力"""
