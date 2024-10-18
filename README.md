@@ -1,7 +1,5 @@
 # BoltDetection_MHI
 ボルト判定
-
-実行手順
 １．環境構築 (テスト python 3.10)
 py -3.10 -m venv venv
 venv\Scripts\activate
