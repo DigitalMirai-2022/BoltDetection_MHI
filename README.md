@@ -8,7 +8,7 @@ venv\Scripts\activate　<br>
 pip install -r requirements.txt<br>
 
 ２．実行<br>
-python main.py<br>
+python __main__.py<br>
 
 NOTE:<br>
 yoloxのonnxモデル準備が必要　<br>
