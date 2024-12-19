@@ -27,8 +27,8 @@
         ]
     },
     "bolt status": {
-        "loading interval": 0.3,
-        "status change count": 7
+        "loading interval": 0.2,
+        "status change count": 10
     },
     "bolt distance": {
         "distance": 0.03

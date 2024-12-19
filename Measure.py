@@ -14,7 +14,6 @@ from datetime import datetime
 import time
 import math
 from collections import defaultdict
-from typing import Dict, Union
 
 # YOLOX検出用
 from yolox.detect import YOLOX
@@ -27,16 +26,6 @@ from MarkerSummary import MarkerSummary
 from Output_Log import LogMan
 from Message_Dialog import QR_INFO, msgbox_edit_config
 from yolox.visualize import vis_counted_position
-from config_class import (
-    MarkerSize,
-    Axis,
-    YRange,
-    CodeSpecification,
-    BoltStatus,
-    BoltDistance,
-    Device,
-    Config,
-)
 
 # tkinterのルートウィンドウ非表示
 root = tk.Tk()
@@ -1341,7 +1330,7 @@ class Measure:
 
     # 二重描画なしのため処理
     def filter_position(self, position):
-        for cls_id, valid_position in self.valid_centers.items():
+        for _, valid_position in self.valid_centers.items():
             for pos in valid_position:
                 if (
                     np.linalg.norm(np.array(pos) - np.array(position))

@@ -116,7 +116,7 @@ class msgbox_edit_config:
                 self.entries["クラス固定回数"].get()
             )
             self.config["Y range"]["Lower y"] = float(
-                self.entries["ArUco垂直方向距離(mm)"].get()
+                self.entries["ArUco垂直方向距離(m)"].get()
             )
             # ファイルに保存
             with open(self.config_path, "w") as f:
@@ -139,7 +139,7 @@ class msgbox_edit_config:
                 "クラス固定回数",
                 self.config["bolt status"]["status change count"],
             ),
-            ("ArUco垂直方向距離(mm)", self.config["Y range"]["Lower y"]),
+            ("ArUco垂直方向距離(m)", self.config["Y range"]["Lower y"]),
         ]
 
         # 左揃えの配置を実現
